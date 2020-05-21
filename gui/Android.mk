@@ -32,6 +32,10 @@ LOCAL_SRC_FILES := \
     terminal.cpp \
     twmsg.cpp
 
+ifeq ($(AB_OTA_UPDATER),true)
+    LOCAL_CFLAGS += -DAB_OTA_UPDATER
+endif
+
 ifneq ($(TWRP_CUSTOM_KEYBOARD),)
     LOCAL_SRC_FILES += $(TWRP_CUSTOM_KEYBOARD)
 else
