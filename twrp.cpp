@@ -47,10 +47,12 @@ extern "C" {
 #include "data.hpp"
 #include "partitions.hpp"
 
-#ifdef USE_OLD_BASE_INCLUDE
-#include <strings.h>
-#else
+#ifdef __ANDROID_API_N__
 #include <android-base/strings.h>
+#elif __ANDROID_API_M__
+#include <base/strings.h>
+#else
+#include <strings.h>
 #endif
 #include "openrecoveryscript.hpp"
 #include "variables.h"
