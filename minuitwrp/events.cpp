@@ -28,6 +28,10 @@
 #include <string.h>
 #include <fstream>
 
+#ifdef USE_QTI_HAPTICS
+#include <android/hardware/vibrator/1.2/IVibrator.h>
+#endif
+
 #include "../common.h"
 
 #include "minui.h"
@@ -124,20 +128,28 @@ int write_to_file(const std::string& fn, const std::string& line) {
 }
 
 #ifndef TW_NO_HAPTICS
+#ifndef TW_HAPTICS_TSPDRV
 int vibrate(int timeout_ms)
 {
     if (timeout_ms > 10000) timeout_ms = 1000;
     char tout[6];
     sprintf(tout, "%i", timeout_ms);
 
+#ifndef USE_QTI_HAPTICS
     if (std::ifstream(LEDS_HAPTICS_ACTIVATE_FILE).good()) {
         write_to_file(LEDS_HAPTICS_DURATION_FILE, std::to_string(timeout_ms));
         write_to_file(LEDS_HAPTICS_ACTIVATE_FILE, "1");
     } else
         write_to_file(VIBRATOR_TIMEOUT_FILE, std::to_string(timeout_ms));
-
+#else
+    android::sp<android::hardware::vibrator::V1_2::IVibrator> vib = android::hardware::vibrator::V1_2::IVibrator::getService();
+    if (vib != nullptr) {
+        vib->on((uint32_t)timeout_ms);
+    }
+#endif
     return 0;
 }
+#endif
 #endif
 
 /* Returns empty tokens */

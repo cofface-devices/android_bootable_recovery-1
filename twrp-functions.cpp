@@ -672,7 +672,7 @@ void TWFunc::Update_Intent_File(string Intent) {
 int TWFunc::tw_reboot(RebootCommand command)
 {
 	DataManager::Flush();
-	if (!Is_Data_Wiped("/data"))
+	if (!Is_Data_Wiped())
 		Update_Log_File();
 
 	// Always force a sync before we reboot
@@ -1860,7 +1860,7 @@ void TWFunc::Deactivation_Process(void)
 		}
 		gui_msg(Msg(msg::kProcess, "pb_run_process=Starting '{1}' process")("PitchBlack"));
 		DataManager::GetValue(TRB_EN, trb_en);
-		if (TWFunc::check_encrypt_status() != 0) {
+		if (TWFunc::check_encrypt_status() != 0 && DataManager::GetIntValue(PB_ENABLE_ADVANCE_ENCRY) == 0) {
 			gui_msg(Msg(msg::kHighlight, "pb_ecryption_leave=Device Encrypted Leaving Forceencrypt"));
 			setenv("KEEPFORCEENCRYPT", "true", true);
 			DataManager::SetValue(PB_DISABLE_FORCED_ENCRYPTION, 0);
@@ -1930,6 +1930,17 @@ void TWFunc::Read_Write_Specific_Partition(string path, string partition_name, b
 	unlink(path.c_str());
 	TWFunc::Exec_Cmd(Read_Write, null);
 	return;
+}
+
+void TWFunc::copy_logcat_log(string curr_storage) {
+	std::string logcatDst = curr_storage + "/logcat.log";
+	std::string logcatCmd = "/sbin/logcat -d";
+
+	std::string result;
+	Exec_Cmd(logcatCmd, result);
+	write_to_file(logcatDst, result);
+	gui_msg(Msg("copy_logcat_log=Copied logcat log to {1}")(logcatDst));
+	tw_set_default_metadata(logcatDst.c_str());
 }
 
 void TWFunc::copy_kernel_log(string curr_storage) {
@@ -2235,14 +2246,14 @@ bool TWFunc::Set_Encryption_Policy(std::string path, const ext4_encryption_polic
 	return true;
 }
 
-bool TWFunc::Is_Data_Wiped(std::string path) {
+bool TWFunc::Is_Data_Wiped() {
+	std::string data_path = "/data";
 #ifdef TW_INCLUDE_FBE
-	DIR* d = opendir(path.c_str());
+	DIR* d = opendir(data_path.c_str());
 	size_t file_count = 0;
 	if (d != NULL) {
 		struct dirent* de;
 		while ((de = readdir(d)) != NULL) {
-			LOGINFO("file: %s\n", de->d_name);
 			if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
 				continue;
 			if (strncmp(de->d_name, "lost+found", 10) == 0 || strncmp(de->d_name, "media", 5) == 0)
@@ -2252,7 +2263,6 @@ bool TWFunc::Is_Data_Wiped(std::string path) {
 		}
 		closedir(d);
 	}
-	LOGINFO("file_count: %zu\n", file_count);
 	return file_count == 0;
 #else
 	return true;

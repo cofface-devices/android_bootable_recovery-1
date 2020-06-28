@@ -47,10 +47,12 @@ extern "C" {
 #include "data.hpp"
 #include "partitions.hpp"
 
-#ifdef USE_OLD_BASE_INCLUDE
+#if SDK_VERSION >= 24
+#include <android-base/strings.h>
+#elif SDK_VERSION == 23
 #include <base/strings.h>
 #else
-#include <android-base/strings.h>
+#include <strings.h>
 #endif
 #include "openrecoveryscript.hpp"
 #include "variables.h"
@@ -424,7 +426,7 @@ int main(int argc, char **argv) {
 	// Reboot
 	TWFunc::Update_Intent_File(Send_Intent);
 	delete adb_bu_fifo;
-	if (!TWFunc::Is_Data_Wiped("/data"))
+	if (!TWFunc::Is_Data_Wiped())
 		TWFunc::Update_Log_File();
 	gui_msg(Msg("rebooting=Rebooting..."));
 	string Reboot_Arg;

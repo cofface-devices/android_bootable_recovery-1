@@ -32,7 +32,6 @@
 #endif
 
 #include "twrpDigest/twrpDigest.hpp"
-#include "ext4crypt_tar.h"
 
 #ifndef BUILD_TWRPTAR_MAIN
 #include "partitions.hpp"
@@ -130,6 +129,7 @@ public:
 	static void SetPerformanceMode(bool mode); // support recovery.perf.mode
 	static void Disable_Stock_Recovery_Replace(); // Disable stock ROMs from replacing TWRP with stock recovery
 	static unsigned long long IOCTL_Get_Block_Size(const char* block_device);
+	static void copy_logcat_log(string curr_storage); // Copy Logcat Log to Current Storage (PSTORE/KMSG)
 	static void copy_kernel_log(string curr_storage); // Copy Kernel Log to Current Storage (PSTORE/KMSG)
 	static void create_fingerprint_file(string file_path, string fingerprint); // Create new file and write in to it loaded fingerprintPSTORE/KMSG)
 	static bool Verify_Incremental_Package(string fingerprint, string metadatafp, string metadatadevice); // Verify if the Incremental Package is compatible with the ROM
@@ -143,7 +143,7 @@ public:
 	static int Property_Override(string Prop_Name, string Prop_Value); // Override properties (including ro. properties)
 	static bool Get_Encryption_Policy(ext4_encryption_policy &policy, std::string path); // return encryption policy for path
 	static bool Set_Encryption_Policy(std::string path, const ext4_encryption_policy &policy); // set encryption policy for path
-	static bool Is_Data_Wiped(std::string path); // check if directory has been wiped
+	static bool Is_Data_Wiped(); // check if directory has been wiped
 
 private:
 	static void Copy_Log(string Source, string Destination);

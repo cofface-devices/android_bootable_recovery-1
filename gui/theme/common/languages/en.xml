@@ -735,7 +735,9 @@
 		<string name="adbbackup_control_error">Cannot write to adb control channel</string>
 		<string name="twrp_adbbu_option">--twrp option is required to enable twrp adb backup</string>
 		<string name="partition_not_found">path: {1} not found in partititon list</string>
+                <string name="copy_logcat_log">Copied logcat log to {1}</string>
 		<string name="copy_kernel_log">Copied kernel log to {1}</string>
+                <string name="include_logcat_log">Include Logcat Log</string>
 		<string name="include_kernel_log">Include Kernel Log</string>
 		<string name="sha2_chk">Use SHA2 for hashing</string>
 		<string name="unable_set_boot_slot">Error changing bootloader boot slot to {1}</string>
@@ -835,7 +837,8 @@
 		<string name="pb_incremental_ota_bak">OTA_BAK -- done!</string>
 		<string name="pb_advanced_stock_recovery">Aggressive stock recovery deactivation</string>
 		<string name="pb_reboot_dont_disable_stock_recovery_chk">Don't disable stock recovery replace</string>
-		<string name="pb_dmverity_chk">Deactivation After Flashing</string>
+		<string name="pb_dmverity_chk">Deactivation (Patch DM-Verity)</string>
+		<string name="pb_for_en_chk">Advance Disable Forced Encryption</string>
 		<string name="pb_forced_encryption_chk">Disable Forced Encryption</string>
 		<string name="pb_disable_reboot_ota_check">Disable Rebooting after OTA</string>
 		<string name="pb_run_process">Starting '{1}' process</string>

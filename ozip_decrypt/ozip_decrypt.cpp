@@ -1,7 +1,26 @@
+/*
+	Copyright 2020 Mauronofrio
+
+	This file is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This file is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	GNU General Public License <http://www.gnu.org/licenses/>.
+*/
+
 #include <iostream>
 #include <string.h>
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
+extern "C" {
+#include "../twcommon.h"
+}
 #define _FILE_OFFSET_BITS 64
 //extern "C" __int64 __cdecl _ftelli64(FILE*);
 
@@ -39,10 +58,10 @@ std::string hexToASCII(string hex)
 
 bool testkey(const char* keyf, const char* path) {
 	u_string key = (unsigned char*)(hexToASCII(keyf)).c_str();
-	char data[17];
+	int data[17];
 	FILE* fps = fopen(path, "rb");
 	fseek(fps, 4176, SEEK_SET);
-	fgets(data, sizeof(data), fps);
+	fread(data, sizeof(char), 16, fps);
 	fclose(fps);
 	u_string udata = (unsigned char*)data;
 	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -69,7 +88,7 @@ int main(int argc, char* argv[])
 
 	if (argc != 3)
 	{
-		printf("Usage: ozipdecrypt key [*.ozip]\n");
+		LOGINFO("Usage: ozipdecrypt key [*.ozip]\n");
 		return 0;
 	}
 	const char* key = argv[1];
@@ -77,29 +96,40 @@ int main(int argc, char* argv[])
 	FILE* fp = fopen(path, "rb");
 	char magic[13];
 	fgets(magic, sizeof(magic), fp);
+	string temp(path);
+	temp = (temp.substr(0, temp.size() - 5)).append(".zip");
+	const char* destpath= temp.c_str();
 	if (strcmp(magic, "OPPOENCRYPT!") != 0)
 	{
-		printf("This is not an .ozip file!\n");
+		LOGINFO("This is not an .ozip file!\n");
+		fclose(fp);
+		int rencheck = rename(path, destpath);
+		if (rencheck == 0) {
+			LOGINFO("Renamed .ozip file in .zip file\n");
+		}
+		else
+		{
+			LOGINFO("Unable to rename .ozip file in .zip file\n");
+			return -1;
+		}
 		return 0;
 	}
 	if (testkey(key, path) == false)
 	{
-		printf("Key is not good!\n");
-		return 0;
+		LOGINFO("Key is not good!\n");
+		fclose(fp);
+		return -2;
 	}
 	else {
-		printf("Key is good!\n");
+		LOGINFO("Key is good!\n");
 	}
-	string temp(path);
-	temp = (temp.substr(0, temp.size() - 5)).append(".zip");
-	const char* destpath= temp.c_str();
 	FILE* fp2 = fopen(destpath, "wb");
 	fseek(fp, 0L, SEEK_END);
 	unsigned long int sizetot = ftello(fp);
 	fseek(fp, 4176, SEEK_SET);
 	int bdata[16384];
 	unsigned long int sizeseek;
-	printf("Decrypting...\n");
+	LOGINFO("Decrypting...\n");
 	while (true)
 	{
 		unsigned char data[17];
@@ -118,7 +148,7 @@ int main(int argc, char* argv[])
 			fwrite(bdata, sizeof(char), 16384, fp2);
 		}
 	}
-	printf("File succesfully decrypted, saved in %s\n", destpath);
+	LOGINFO("File succesfully decrypted, saved in %s\n", destpath);
 	fclose(fp2);
 	fclose(fp);
 	return 0;

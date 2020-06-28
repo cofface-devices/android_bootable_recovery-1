@@ -800,8 +800,18 @@ void DataManager::SetDefaultValues()
 	mPersist.SetValue("pb_verify_incremental_ota_signature", "1");
 	mPersist.SetValue(PB_INCREMENTAL_PACKAGE, "0");
 	mPersist.SetValue(PB_DISABLE_FORCED_ENCRYPTION, "0");
+	mPersist.SetValue(PB_ENABLE_ADVANCE_ENCRY, "0");
+#ifdef PB_DISABLE_DEFAULT_DM_VERITY
+	mPersist.SetValue(PB_DISABLE_DM_VERITY, "0");
+#else
 	mPersist.SetValue(PB_DISABLE_DM_VERITY, "1");
+#endif
+	
+#ifdef PB_DISABLE_DEFAULT_TREBLE_COMP
+	mPersist.SetValue(PB_TREBLE_COMP, "1");
+#else
 	mPersist.SetValue(PB_TREBLE_COMP, "0");
+#endif
 	mPersist.SetValue(PB_DISABLE_REBOOT_OTA, "0");
 	mConst.SetValue(PB_SURVIVAL_FOLDER_VAR, PB_SURVIVAL_FOLDER);
      	mConst.SetValue(PB_SURVIVAL_BACKUP_NAME, PB_SURVIVAL_BACKUP);
@@ -1132,6 +1142,14 @@ void DataManager::Output_Version(void)
 		if (!PartitionManager.Mount_By_Path(NON_AB_CACHE_DIR, false)) {
 			LOGINFO("Unable to mount '%s' to write version number.\n", Path.c_str());
 			return;
+		}
+
+		if (!TWFunc::Path_Exists(recoveryCacheDir)) {
+			LOGINFO("Recreating %s folder.\n", recoveryCacheDir.c_str());
+			if (!TWFunc::Create_Dir_Recursive(recoveryCacheDir.c_str(), S_IRWXU | S_IRWXG | S_IWGRP | S_IXGRP, 0, 0)) {
+				LOGERR("DataManager::Output_Version -- Unable to make %s: %s\n", recoveryCacheDir.c_str(), strerror(errno));
+				return;
+			}
 		}
 	}
 

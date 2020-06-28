@@ -578,6 +578,7 @@ int GUIAction::page(std::string arg)
 
 int GUIAction::reload(std::string arg __unused)
 {
+	property_set("twrp.crash_counter", "-1");
 	PageManager::RequestReload();
 	// The actual reload is handled in pages.cpp in PageManager::RunReload()
 	// The reload will occur on the next Update or Render call and will
@@ -686,8 +687,10 @@ int GUIAction::copylog(std::string arg __unused)
 		int path_len;
 
 		string dst, curr_storage, cache_strg;
+		int copy_logcat_log = 0;
 		int copy_kernel_log = 0;
 
+		DataManager::GetValue("tw_include_logcat_log", copy_logcat_log);
 		DataManager::GetValue("tw_include_kernel_log", copy_kernel_log);
 		PartitionManager.Mount_Current_Storage(true);
 		curr_storage = DataManager::GetCurrentStoragePath();
@@ -716,6 +719,20 @@ int GUIAction::copylog(std::string arg __unused)
 		}
 
 		tw_set_default_metadata(dst.c_str());
+                if (copy_logcat_log || DataManager::GetIntValue("pb_inlclude_logcat_logging")) {
+                        std::string logcatDst = path;
+                        logcatDst.replace(logcatDst.find_last_of("/")+1,8,"logcat");
+                        std::string logcatCmd = "/sbin/logcat -d";
+                        std::string result;
+                        TWFunc::Exec_Cmd(logcatCmd, result);
+                        TWFunc::write_to_file(logcatDst, result);
+                        if (DataManager::GetIntValue(TW_IS_ENCRYPTED) != 0) {
+                                cache_strg.replace(cache_strg.find_last_of("/")+1,8,"logcat");
+                                TWFunc::copy_file(logcatDst, cache_strg.c_str(), 0755);
+                        }
+                        gui_msg(Msg("copy_logcat_log=Copied logcat log to {1}")(logcatDst));
+                        tw_set_default_metadata(logcatDst.c_str());
+                }
 		if (copy_kernel_log || DataManager::GetIntValue("pb_inlclude_dmesg_logging")) {
 			std::string dmesgDst = path;
 			dmesgDst.replace(dmesgDst.find_last_of("/")+1,8,"dmesg");
@@ -1152,10 +1169,10 @@ int GUIAction::ozip_decrypt(string zip_path)
 	if (!TWFunc::Path_Exists("/sbin/ozip_decrypt")) {            
             return 1;
         }
-    gui_msg("ozip_decrypt_decryption=Starting Ozip Decryption...");
-	TWFunc::Exec_Cmd("ozip_decrypt " + (string)TW_OZIP_DECRYPT_KEY + " " + zip_path);
-    gui_msg("ozip_decrypt_finish=Ozip Decryption Finished!");
-	return 0;
+	gui_msg("ozip_decrypt_decryption=Starting Ozip Decryption...");
+	int ret = TWFunc::Exec_Cmd("ozip_decrypt " + (string)TW_OZIP_DECRYPT_KEY + " '" + zip_path + "'");
+	gui_msg("ozip_decrypt_finish=Ozip Decryption Finished!");
+	return ret;
 }
 
 int GUIAction::keypressed()
@@ -1233,18 +1250,22 @@ int GUIAction::flash(std::string arg)
 		size_t slashpos = zip_path.find_last_of('/');
 		zip_filename = (slashpos == string::npos) ? zip_path : zip_path.substr(slashpos + 1);
 		operation_start("Flashing");
-        if((zip_path.substr(zip_path.size() - 4, 4))=="ozip")
+		if((zip_path.substr(zip_path.size() - 4, 4))=="ozip")
 		{
-			if((ozip_decrypt(zip_path)) != 0)
+			int ret = ozip_decrypt(zip_path);
+			if (ret == -2)
 			{
-                LOGERR("Unable to find ozip_decrypt!");
+				LOGERR("Key is not compatibile\n");
 				break;
 			}
-			zip_filename = (zip_filename.substr(0, zip_filename.size() - 4)).append("zip");
-            zip_path = (zip_path.substr(0, zip_path.size() - 4)).append("zip");
-			if (!TWFunc::Path_Exists(zip_path)) {
-				LOGERR("Unable to find decrypted zip");
-				break;
+			else if (ret != -1)
+			{
+				zip_filename = (zip_filename.substr(0, zip_filename.size() - 4)).append("zip");
+				zip_path = (zip_path.substr(0, zip_path.size() - 4)).append("zip");
+				if (!TWFunc::Path_Exists(zip_path)) {
+					LOGERR("Unable to find decrypted zip\n");
+					break;
+				}
 			}
 		}
 		DataManager::SetValue("tw_filename", zip_path);
@@ -2333,6 +2354,22 @@ int GUIAction::installapp(std::string arg __unused)
 							LOGERR("setfilecon %s error: %s\n", install_path.c_str(), strerror(errno));
 							goto exit;
 						}
+
+						// System apps require their permissions to be pre-set via an XML file in /etc/permissions
+						string permission_path = base_path + "/etc/permissions/privapp-permissions-twrpapp.xml";
+						if (TWFunc::copy_file("/sbin/privapp-permissions-twrpapp.xml", permission_path, 0644)) {
+							LOGERR("Error copying permission file\n");
+							goto exit;
+						}
+						if (chown(permission_path.c_str(), 1000, 1000)) {
+							LOGERR("chown %s error: %s\n", permission_path.c_str(), strerror(errno));
+							goto exit;
+						}
+						if (setfilecon(permission_path.c_str(), (security_context_t)context.c_str()) < 0) {
+							LOGERR("setfilecon %s error: %s\n", permission_path.c_str(), strerror(errno));
+							goto exit;
+						}
+
 						sync();
 						sync();
 						PartitionManager.UnMount_By_Path(PartitionManager.Get_Android_Root_Path(), true);
@@ -2390,18 +2427,15 @@ int GUIAction::repack(std::string arg __unused)
 
 int GUIAction::flashlight(std::string arg __unused)
 {
-	fstream File;
-	int val=0, max_val=0, br_value = DataManager::GetIntValue("pb_bright_value");
-	string str_val,null, file, flashp1 = "/sys/class/leds", flashp2 = "/flashlight", flashpath;
-	string bright = "/brightness", maxpath, max = "/max_brightness";
-	string switch_path = flashp1 + "/led:switch" + bright;
+	int br_value = DataManager::GetIntValue("pb_bright_value");
+	string str_val, file, flashp1 = "/sys/class/leds", flashp2 = "/flashlight", flashpath;
+	string bright = "/brightness";
+	string switch_path = TWFunc::Path_Exists(flashp1 + "/led:switch" + bright) ? (flashp1 + "/led:switch") : (flashp1 + "/led:switch_0");
 #ifdef PB_TORCH_PATH
 	flashpath = PB_TORCH_PATH + bright;
-	maxpath = PB_TORCH_PATH + max;
 	LOGINFO("flashlight: Custom Node located at '%s'\n", flashpath.c_str());
 #else
 	flashpath = flashp1 + flashp2 + bright;
-	maxpath = flashp1 + flashp2 + max;
 	DIR* d;
 	struct dirent* de;
 	if (!TWFunc::Path_Exists(flashpath))
@@ -2415,9 +2449,8 @@ int GUIAction::flashlight(std::string arg __unused)
 		while ((de = readdir(d)) != NULL)
 		{
 			file = de->d_name;
-			if(file.find("torch-") != string::npos)
+			if(file.find("torch-") != string::npos || file.find("torch_"))
 			{
-				maxpath= flashp1 + "/" + file + max;
 				flashpath = flashp1 + "/" + file + bright;
 				break;
 			}
@@ -2426,51 +2459,26 @@ int GUIAction::flashlight(std::string arg __unused)
 		LOGINFO("Detected Node located at  '%s'\n", flashpath.c_str());
 	}
 #endif
-	if (TWFunc::Path_Exists(maxpath))
-	{
-		File.open(maxpath, ios::in);
-		if (File.is_open())
-		{
-			getline (File, str_val);
-			max_val = std::stoi (str_val);
-		}
-		File.close();
-	}
 	str_val="";
-	File.open(flashpath, ios::in | ios::out);
-	if(File.is_open())
-	{
+	if (TWFunc::Path_Exists(flashpath)) {
 		LOGINFO("Flashlight Node Located at '%s'\n", flashpath.c_str());
-		getline (File, str_val);
-		val = std::stoi (str_val);
-		if (val > 0)
+		TWFunc::read_file(flashpath, str_val);
+		if (std::stoi(str_val) > 0)
 		{
 			LOGINFO("Flashlight Turning Off\n");
 			if (TWFunc::Path_Exists(switch_path))
-				TWFunc::write_to_file(switch_path, "0");
-			File << "0";
+				TWFunc::write_to_file(switch_path + bright, "0");
+			TWFunc::write_to_file(flashpath, "0");
 		}
 		else
 		{
 			LOGINFO("Flashlight Turning On\n");
-			if (TWFunc::Path_Exists(switch_path))
-				TWFunc::write_to_file(switch_path, "1");
-			if (br_value == 0 || br_value == 255)
-			{
-				LOGINFO("Flashlight: Brightening with Maximum Brightness\n");
-				if (TWFunc::Path_Exists(maxpath))
-					File << max_val;
-				else
-					File << "1";
-			}
-			else {
-				LOGINFO("Flashlight: Brightning value '%d'\n", br_value);
-				File << br_value;
-			}
-				
+			LOGINFO("Flashlight: Brightning value '%d'\n", br_value);
+			TWFunc::write_to_file(flashpath, std::to_string(br_value));
+			TWFunc::write_to_file(switch_path + bright, "1");
 		}
-	}
-	File.close();
+	} else
+		LOGINFO("Incorrect Flashlight Path\n");
 	return 0;
 }
 

@@ -2491,11 +2491,13 @@ void TWPartitionManager::Check_Users_Decryption_Status() {
 	std::vector<users_struct>::iterator iter;
 	for (iter = Users_List.begin(); iter != Users_List.end(); iter++) {
 		if (!(*iter).isDecrypted) {
+			LOGINFO("User %s is not decrypted.\n", (*iter).userId.c_str());
 			all_is_decrypted = 0;
 			break;
 		}
 	}
 	if (all_is_decrypted == 1) {
+		LOGINFO("All found users are decrypted.\n");
 		DataManager::SetValue("tw_all_users_decrypted", "1");
 		property_set("twrp.all.users.decrypted", "true");
 	} else
@@ -3800,7 +3802,7 @@ TWPartitionManager::Flash_Image (string & path, string & filename)
       return false;
     }
   gui_highlight ("flash_done=IMAGE FLASH COMPLETED]");
-	if (deactivation)
+	if (deactivation && DataManager::GetIntValue(PB_DISABLE_DM_VERITY))
 		DataManager::SetValue(PB_CALL_DEACTIVATION, 1);
   return true;
 }

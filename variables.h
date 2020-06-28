@@ -21,7 +21,7 @@
 #ifdef PB_OFFICIAL
 #define TW_DEVICE_VERSION	   "Official"
 #endif
-#define TW_MAIN_VERSION_STR       "3.3.1"
+#define TW_MAIN_VERSION_STR       "3.4.0"
 #define TW_VERSION_STR TW_MAIN_VERSION_STR TW_DEVICE_VERSION
 
 #define TW_USE_COMPRESSION_VAR      "tw_use_compression"
@@ -170,13 +170,13 @@
 #define PB_CALL_DEACTIVATION         "pb_call_deactivation_process"
 #define PB_MIN_EXPECTED_FP_SIZE 30
 #define PB_DISABLE_SECURE_BOOT           "pb_reboot_disable_secure_boot"
-#define PB_DISABLE_FORCED_ENCRYPTION           "pb_reboot_forced_encryption_check"
-#define PB_DISABLE_DM_VERITY           "pb_reboot_dm_verity_check"
+#define PB_DISABLE_FORCED_ENCRYPTION           "pb_forced_encryption_check"
+#define PB_ENABLE_ADVANCE_ENCRY		"pb_advance_encry"
+#define PB_DISABLE_DM_VERITY           "pb_dm_verity_check"
 #define PB_SURVIVAL_FOLDER_VAR      "pb_survival_backup_folder_path"
 #define PB_TMP_SCRIPT_DIR       "pb_tmp_script_directory"
 #define PB_COMPATIBILITY_DEVICE         "pb_compatibility_pb_device"
 #define PB_ADVANCED_STOCK_REPLACE           "pb_reboot_advanced_stock_recovery_check"
-#define PB_DISABLE_FORCED_ENCRYPTION           "pb_reboot_forced_encryption_check"
 #define PB_DISABLE_REBOOT_OTA	"pb_disable_reboot_ota"
 #define TRB_EN "0"
 #define STD "0"

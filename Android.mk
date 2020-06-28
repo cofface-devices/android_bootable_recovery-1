@@ -79,6 +79,14 @@ ifeq ($(PB_FORCE_DD_FLASH),true)
     LOCAL_CFLAGS += -DPB_FORCE_DD_FLASH='true'
 endif
 
+ifeq ($(PB_DISABLE_DEFAULT_DM_VERITY),true)
+    LOCAL_CFLAGS += -DPB_DISABLE_DEFAULT_DM_VERITY=$(PB_DISABLE_DEFAULT_DM_VERITY)
+endif
+
+ifeq ($(PB_DISABLE_DEFAULT_TREBLE_COMP),true)
+    LOCAL_CFLAGS += -PB_DISABLE_DEFAULT_TREBLE_COMP=$(PB_DISABLE_DEFAULT_TREBLE_COMP)
+endif
+
 LOCAL_SRC_FILES := \
     twrp.cpp \
     fixContexts.cpp \
@@ -163,6 +171,7 @@ ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 23; echo $$?),0)
     LOCAL_SHARED_LIBRARIES += libstlport
     LOCAL_CFLAGS += -DTW_NO_SHA2_LIBRARY
 endif
+LOCAL_CFLAGS += -DSDK_VERSION=$(PLATFORM_SDK_VERSION)
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 25; echo $$?),0)
     LOCAL_CFLAGS += -DUSE_OLD_BASE_INCLUDE
 endif
@@ -204,7 +213,7 @@ ifeq ($(TARGET_USERIMAGES_USE_EXT4), true)
     ifeq ($(shell test $(PLATFORM_SDK_VERSION) -le 28; echo $$?),0)
         LOCAL_C_INCLUDES += system/extras/ext4_utils \
             system/extras/ext4_utils/include \
-            bootable/recovery/crypto/ext4crypt
+	    $(commands_TWRP_local_path)/crypto/ext4crypt
         LOCAL_SHARED_LIBRARIES += libext4_utils
         ifneq ($(wildcard external/lz4/Android.mk),)
             #LOCAL_STATIC_LIBRARIES += liblz4
